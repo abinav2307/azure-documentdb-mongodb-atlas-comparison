@@ -1,0 +1,8 @@
+unit: workload-cli
+bindings:
+  - {type: convention, name: "Node.js ESM main", source_loc: "resiliency/workload.js:270", target: main, must_appear_in_target: true, notes: "CLI entry point"}
+runtime_config:
+  - {key: DOCUMENTDB_CONNECTION_STRING, source_loc: "resiliency/workload.js:123", source: env, default_value: "", must_appear_in_target: true, notes: "Experiment cluster secret"}
+  - {key: RESILIENCY_RUN_ID, source_loc: "resiliency/workload.js:124", source: env, default_value: "", must_appear_in_target: true, notes: "Run identifier"}
+  - {key: RESILIENCY_PHASE_FILE, source_loc: "resiliency/workload.js:140", source: env, default_value: "", must_appear_in_target: true, notes: "Cross-process phase state"}
+  - {key: RESILIENCY_STOP_FILE, source_loc: "resiliency/workload.js:141", source: env, default_value: "", must_appear_in_target: true, notes: "Cross-process stop signal"}

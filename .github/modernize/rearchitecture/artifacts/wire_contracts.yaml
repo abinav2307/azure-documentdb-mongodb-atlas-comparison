@@ -1,0 +1,17 @@
+contracts:
+  - name: experiment-cluster-mongodb
+    unit: workload-cli
+    type: sdk
+    stability: frozen
+    source_loc: "resiliency/workload.js:182"
+    contract: {method: "MongoDB commands", path: "resiliencyTestDB.resiliencyCollection", request: "1 KiB BSON insert, point read, ping", response: "acknowledgement/document/command result", error: "sanitized driver category and code", auth: "SCRAM-SHA-256 over TLS"}
+    target_contract: {method: "mongodb.MongoClient APIs", notes: "Use mongodb 7.6.0 for every data-plane interaction."}
+    semantic_divergence: []
+  - name: aggregate-result-sink
+    unit: campaign-coordinator-cli
+    type: sdk
+    stability: frozen
+    source_loc: "resiliency/result-sink.js:28"
+    contract: {method: "insertOne/findOne/replaceOne", path: "resiliencyResultsDB.runs", request: "schema-valid aggregate run document", response: "exact readback", error: "duplicate conflict or bounded final-write failure", auth: "connection string from process environment or masked input"}
+    target_contract: {method: "ResultSink methods backed by mongodb.MongoClient", notes: "Raw event spools are never written to the result sink."}
+    semantic_divergence: []

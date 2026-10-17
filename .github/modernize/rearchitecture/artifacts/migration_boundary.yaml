@@ -1,0 +1,23 @@
+user_intent:
+  raw_request: "Change this repo to use Node.js instead of Python and use the latest Node.js driver for MongoDB."
+  inferred_acceptance:
+    - "all active runtime entry points use Node.js"
+    - "all Azure DocumentDB data-plane operations use the MongoDB Node.js driver"
+  cleanup_required: true
+strategy: full_rewrite
+runtime_reachable:
+  - resiliency/*.js
+  - package.json
+  - .vscode/tasks.json
+must_rewrite:
+  - {path: resiliency, reason: "Python entry points invoked one another and therefore all runtime-reachable scripts required replacement"}
+  - {path: .vscode/tasks.json, reason: "launch tasks directly selected the Python interpreter"}
+  - {path: resiliency/run-document.schema.json, reason: "persisted driver metadata constrained values to PyMongo"}
+copy_as_is:
+  - resiliency/infrastructure/main.json
+legacy_allowed_to_remain:
+  - resiliency/results
+defer_cleanup:
+  - "Historical result documents retain the driver metadata of the run that produced them."
+full_rewrite_reason: "The user explicitly requested Node.js instead of Python, and every Python entry point was runtime-reachable through direct child-process invocation."
+implementation_rule: "Only JavaScript entry points and npm dependencies may participate in the active runtime."

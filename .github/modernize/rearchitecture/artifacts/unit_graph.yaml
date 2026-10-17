@@ -1,0 +1,73 @@
+units:
+  - name: campaign-cli
+    trigger: cli
+    trigger_detail: "node resiliency/campaign.js"
+    source_anchors: [{path: resiliency/campaign.js, line: 222}]
+    exported_signature: [{method: "main(argv) -> Promise<number>", source_loc: "resiliency/campaign.js:222", stability: must_preserve}]
+    dynamic_entrypoints: []
+    depends_on: [{unit: campaign-coordinator-cli, via: "Node.js child process"}]
+    shared_refs: [{module: runtime-common, used_fields: [parseArgs, readJson, runNode, writeJson]}, {module: driver-metadata, used_fields: [driverMetadata]}, {module: sku-configuration, used_fields: [workloadThreads]}]
+  - name: campaign-coordinator-cli
+    trigger: cli
+    trigger_detail: "node resiliency/campaign-coordinator.js <manifests...>"
+    source_anchors: [{path: resiliency/campaign-coordinator.js, line: 331}, {path: resiliency/result-sink.js, line: 23}]
+    exported_signature: [{method: "main(argv) -> Promise<number>", source_loc: "resiliency/campaign-coordinator.js:331", stability: must_preserve}]
+    dynamic_entrypoints: []
+    depends_on: [{unit: orchestrator-cli, via: "Node.js child process"}, {unit: cleanup-cli, via: "Node.js child process"}, {unit: finalizer-cli, via: "Node.js child process"}]
+    shared_refs: [{module: runtime-common, used_fields: [atomicJson, readJson, runNode]}]
+  - name: orchestrator-cli
+    trigger: cli
+    trigger_detail: "node resiliency/orchestrate.js <manifest>"
+    source_anchors: [{path: resiliency/orchestrate.js, line: 180}]
+    exported_signature: [{method: "main(argv) -> Promise<number>", source_loc: "resiliency/orchestrate.js:180", stability: must_preserve}]
+    dynamic_entrypoints: []
+    depends_on: [{unit: workload-cli, via: "Node.js child process"}, {unit: summarizer-cli, via: "Node.js child process"}]
+    shared_refs: [{module: runtime-common, used_fields: [atomicJson, atomicText, runNode]}, {module: sku-configuration, used_fields: [workloadThreads]}]
+  - name: workload-cli
+    trigger: cli
+    trigger_detail: "node resiliency/workload.js"
+    source_anchors: [{path: resiliency/workload.js, line: 150}]
+    exported_signature: [{method: "main(argv) -> Promise<number>", source_loc: "resiliency/workload.js:150", stability: must_preserve}]
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs: [{module: runtime-common, used_fields: [parseArgs, round, sleep, utcNow]}]
+  - name: cleanup-cli
+    trigger: cli
+    trigger_detail: "node resiliency/cleanup-run.js <manifest> --evidence <path>"
+    source_anchors: [{path: resiliency/cleanup-run.js, line: 22}]
+    exported_signature: [{method: "main(argv) -> Promise<number>", source_loc: "resiliency/cleanup-run.js:22", stability: must_preserve}]
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs: [{module: runtime-common, used_fields: [readJson, runSync, writeJson]}]
+  - name: diagnose-cli
+    trigger: cli
+    trigger_detail: "node resiliency/diagnose-deployment.js <deployment-name>"
+    source_anchors: [{path: resiliency/diagnose-deployment.js, line: 4}]
+    exported_signature: [{method: "main(argv) -> Promise<number>", source_loc: "resiliency/diagnose-deployment.js:4", stability: must_preserve}]
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs: [{module: runtime-common, used_fields: [parseArgs]}]
+  - name: finalizer-cli
+    trigger: cli
+    trigger_detail: "node resiliency/finalize-run.js <run-directory> --manifest <path>"
+    source_anchors: [{path: resiliency/finalize-run.js, line: 443}]
+    exported_signature: [{method: "main(argv) -> Promise<number>", source_loc: "resiliency/finalize-run.js:443", stability: must_preserve}]
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs: [{module: runtime-common, used_fields: [readJson, round, writeJson]}, {module: driver-metadata, used_fields: [driverMetadata]}]
+  - name: summarizer-cli
+    trigger: cli
+    trigger_detail: "node resiliency/summarize.js <events>"
+    source_anchors: [{path: resiliency/summarize.js, line: 144}]
+    exported_signature: [{method: "main(argv) -> Promise<number>", source_loc: "resiliency/summarize.js:144", stability: must_preserve}]
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs: [{module: runtime-common, used_fields: [parseArgs, round]}]
+  - name: validator-cli
+    trigger: cli
+    trigger_detail: "node resiliency/validate-run-document.js <document>"
+    source_anchors: [{path: resiliency/validate-run-document.js, line: 139}]
+    exported_signature: [{method: "main(argv) -> Promise<number>", source_loc: "resiliency/validate-run-document.js:139", stability: must_preserve}]
+    dynamic_entrypoints: []
+    depends_on: []
+    shared_refs: [{module: runtime-common, used_fields: [parseArgs, readJson, round]}]

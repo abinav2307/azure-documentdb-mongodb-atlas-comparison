@@ -1,0 +1,9 @@
+unit: campaign-cli
+side_effects:
+  - {source_loc: "resiliency/campaign.js:155", effect: "creates bounded manifests, planned documents, and scale bodies", must_preserve: true}
+  - {source_loc: "resiliency/campaign.js:201", effect: "persists one campaign approval across all manifests", must_preserve: true}
+branches:
+  - {source_loc: "resiliency/campaign.js:229", condition: "resume plan, resume latest, or fresh campaign", behavior: "selects or creates the exact campaign plan", must_preserve: true}
+error_paths:
+  - {source_loc: "resiliency/campaign.js:224", trigger: "iteration count outside 1..100", outcome: "reject before creating resources", contract: "non-zero CLI exit", must_preserve: true}
+concurrency: {model: async, tx_boundary: {source_loc: "resiliency/campaign.js:155", scope: "filesystem writes only; no database transaction", isolation: "none", must_preserve: false}}

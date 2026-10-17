@@ -1,0 +1,8 @@
+unit: validator-cli
+side_effects:
+  - {source_loc: "resiliency/validate-run-document.js:162", effect: "prints PASS or invariant errors", must_preserve: true}
+branches:
+  - {source_loc: "resiliency/validate-run-document.js:147", condition: "--manifest supplied", behavior: "validates identity and ownership invariants", must_preserve: true}
+error_paths:
+  - {source_loc: "resiliency/validate-run-document.js:158", trigger: "schema or arithmetic error", outcome: "prints each ERROR and exits 1", contract: "exit code 1", must_preserve: true}
+concurrency: {model: async, tx_boundary: {source_loc: "resiliency/validate-run-document.js:139", scope: "read-only validation", isolation: "none", must_preserve: false}}

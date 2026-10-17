@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/atlas-resiliency-run.json",
+  "title": "MongoDB Atlas resiliency run result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "_id",
+    "date",
+    "agentName",
+    "provider",
+    "product",
+    "atlasProjectId",
+    "atlasTopology",
+    "driver",
+    "driverVersion",
+    "clientObservedAvailabilityPerc",
+    "totalRuntimeSeconds",
+    "provisioningTimeSeconds",
+    "scaleUpTimeSeconds",
+    "cleanupTimeSeconds",
+    "startTimeUTC",
+    "endTimeUTC",
+    "clusterName",
+    "region",
+    "initialComputeTier",
+    "targetComputeTier",
+    "storageSizeGb",
+    "parameters",
+    "controlPlaneTimeline",
+    "controlPlaneFailures",
+    "aggregateMetrics",
+    "availabilityDips",
+    "reportMarkdown"
+  ],
+  "properties": {
+    "_id": { "type": "string", "minLength": 1 },
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "agentName": { "const": "MongoDB Atlas Resiliency Agent" },
+    "provider": { "const": "atlas" },
+    "product": { "const": "MongoDB Atlas" },
+    "atlasProjectId": { "type": "string", "pattern": "^[a-fA-F0-9]{24}$" },
+    "atlasTopology": { "const": "3-node replica set" },
+    "driver": { "const": "Node.js" },
+    "driverVersion": { "type": "string", "pattern": "^mongodb-[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:[A-Za-z0-9.+-]*)$" },
+    "clientObservedAvailabilityPerc": { "$ref": "#/$defs/nullablePercentage" },
+    "totalRuntimeSeconds": { "$ref": "#/$defs/nullableSeconds" },
+    "provisioningTimeSeconds": { "$ref": "#/$defs/nullableSeconds" },
+    "scaleUpTimeSeconds": { "$ref": "#/$defs/nullableSeconds" },
+    "cleanupTimeSeconds": { "$ref": "#/$defs/nullableSeconds" },
+    "startTimeUTC": { "$ref": "#/$defs/nullableTimestamp" },
+    "endTimeUTC": { "$ref": "#/$defs/nullableTimestamp" },
+    "clusterName": { "type": ["string", "null"] },
+    "region": { "type": "string", "minLength": 1 },
+    "initialComputeTier": { "enum": ["M10", "M20", "M30", "M40"] },
+    "targetComputeTier": { "enum": ["M20", "M30", "M40", "M50"] },
+    "storageSizeGb": { "type": "integer", "minimum": 1 },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["connectionTimeoutSeconds", "operationTimeoutSeconds", "maxDataPlaneRetries"],
+      "properties": {
+        "connectionTimeoutSeconds": { "type": "number", "minimum": 0 },
+        "operationTimeoutSeconds": { "type": "number", "minimum": 0 },
+        "maxDataPlaneRetries": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "controlPlaneTimeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provisioningSubmittedUtc",
+        "provisioningCompletedUtc",
+        "scaleSubmittedUtc",
+        "scaleCompleted",
+        "scaleResult",
+        "cleanupSubmittedUtc",
+        "cleanupCompletedUtc"
+      ],
+      "properties": {
+        "provisioningSubmittedUtc": { "$ref": "#/$defs/nullableTimestamp" },
+        "provisioningCompletedUtc": { "$ref": "#/$defs/nullableTimestamp" },
+        "scaleSubmittedUtc": { "$ref": "#/$defs/nullableTimestamp" },
+        "scaleCompleted": { "$ref": "#/$defs/nullableTimestamp" },
+        "scaleResult": { "type": ["string", "null"] },
+        "cleanupSubmittedUtc": { "$ref": "#/$defs/nullableTimestamp" },
+        "cleanupCompletedUtc": { "$ref": "#/$defs/nullableTimestamp" }
+      }
+    },
+    "controlPlaneFailures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/controlPlaneFailure" }
+    },
+    "aggregateMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allOperations", "preScalingPhase", "scalingInProgressPhase", "postScalePhase", "perThread"],
+      "properties": {
+        "allOperations": { "$ref": "#/$defs/operationMetrics" },
+        "preScalingPhase": { "$ref": "#/$defs/nullableOperationMetrics" },
+        "scalingInProgressPhase": { "$ref": "#/$defs/nullableScalingMetrics" },
+        "postScalePhase": { "$ref": "#/$defs/nullableOperationMetrics" },
+        "perThread": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/threadMetrics" }
+        },
+        "requestVolumePerMinute": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/requestVolumeBucket" }
+        }
+      }
+    },
+    "availabilityDips": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/availabilityDip" }
+    },
+    "reportMarkdown": { "type": "string" }
+  },
+  "$defs": {
+    "controlPlaneFailure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "timestampUtc",
+        "errorCode",
+        "errorMessage",
+        "controlPlaneOperationId",
+        "retryCount",
+        "finalOutcome",
+        "stackTrace"
+      ],
+      "properties": {
+        "operation": { "enum": ["provisioning", "scaling", "cleanup"] },
+        "timestampUtc": { "type": "string", "format": "date-time" },
+        "errorCode": { "type": "string", "minLength": 1 },
+        "errorMessage": { "type": "string", "minLength": 1 },
+        "controlPlaneOperationId": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "retryCount": { "type": "integer", "minimum": 0 },
+        "finalOutcome": { "enum": ["succeeded", "failed"] },
+        "stackTrace": { "type": "string", "minLength": 1 }
+      }
+    },
+    "nullableSeconds": {
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "nullablePercentage": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "nullableTimestamp": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "requestVolumeBucket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startTimestamp", "requestCount"],
+      "properties": {
+        "startTimestamp": { "type": "string", "format": "date-time" },
+        "requestCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "operationMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempted", "succeeded", "failed", "availabilityPercent", "observedSeconds"],
+      "properties": {
+        "attempted": { "type": "integer", "minimum": 0 },
+        "succeeded": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "availabilityPercent": { "$ref": "#/$defs/nullablePercentage" },
+        "observedSeconds": { "type": "number", "minimum": 0 }
+      }
+    },
+    "nullableOperationMetrics": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/operationMetrics" }
+      ]
+    },
+    "threadMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "threadId",
+        "allOperations",
+        "preScalingPhase",
+        "scalingInProgressPhase",
+        "postScalePhase",
+        "availabilityDips"
+      ],
+      "properties": {
+        "threadId": { "type": "integer", "minimum": 1 },
+        "allOperations": { "$ref": "#/$defs/operationMetrics" },
+        "preScalingPhase": { "$ref": "#/$defs/operationMetrics" },
+        "scalingInProgressPhase": { "$ref": "#/$defs/operationMetrics" },
+        "postScalePhase": { "$ref": "#/$defs/operationMetrics" },
+        "availabilityDips": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/availabilityDip" }
+        }
+      }
+    },
+    "scalingMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempted",
+        "succeeded",
+        "failed",
+        "availabilityPercent",
+        "observedSeconds",
+        "availableSeconds",
+        "disruptedSeconds",
+        "timeAvailabilityPercent",
+        "rawDisruptionWindows",
+        "longestRawDisruptionSeconds"
+      ],
+      "properties": {
+        "attempted": { "type": "integer", "minimum": 0 },
+        "succeeded": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "availabilityPercent": { "$ref": "#/$defs/nullablePercentage" },
+        "observedSeconds": { "type": "number", "minimum": 0 },
+        "availableSeconds": { "type": "number", "minimum": 0 },
+        "disruptedSeconds": { "type": "number", "minimum": 0 },
+        "timeAvailabilityPercent": { "$ref": "#/$defs/nullablePercentage" },
+        "rawDisruptionWindows": { "type": "integer", "minimum": 0 },
+        "longestRawDisruptionSeconds": { "type": "number", "minimum": 0 }
+      }
+    },
+    "nullableScalingMetrics": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/scalingMetrics" }
+      ]
+    },
+    "availabilityDip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "startUtc",
+        "endUtc",
+        "durationSeconds",
+        "phase",
+        "affectedOperationTypes",
+        "failedOperations",
+        "errorCategories",
+        "errorCategoryCounts",
+        "overlapsControlPlaneOperation"
+      ],
+      "properties": {
+        "startUtc": { "type": "string", "format": "date-time" },
+        "endUtc": { "type": "string", "format": "date-time" },
+        "durationSeconds": { "type": "number", "minimum": 0 },
+        "phase": { "type": "string", "minLength": 1 },
+        "affectedOperationTypes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "failedOperations": { "type": "integer", "minimum": 0 },
+        "errorCategories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "errorCategoryCounts": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 1 }
+        },
+        "overlapsControlPlaneOperation": { "type": "boolean" }
+      }
+    }
+  }
+}

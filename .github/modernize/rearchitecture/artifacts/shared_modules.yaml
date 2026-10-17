@@ -1,0 +1,38 @@
+modules:
+  - name: runtime-common
+    kind: utility
+    source_loc: "resiliency/common.js:1"
+    used_by_units: [campaign-cli, campaign-coordinator-cli, orchestrator-cli, workload-cli, cleanup-cli, diagnose-cli, finalizer-cli, summarizer-cli, validator-cli]
+    fields:
+      - {name: parseArgs, type: function}
+      - {name: readJson, type: function}
+      - {name: writeJson, type: function}
+      - {name: atomicJson, type: function}
+      - {name: atomicText, type: function}
+      - {name: runNode, type: function}
+      - {name: runSync, type: function}
+      - {name: round, type: function}
+      - {name: sleep, type: function}
+      - {name: utcNow, type: function}
+    god_class: false
+    split_candidate: false
+    migration_strategy: extract
+    notes: "Cross-platform runtime and process helpers."
+  - name: driver-metadata
+    kind: utility
+    source_loc: "resiliency/driver-info.js:1"
+    used_by_units: [campaign-cli, finalizer-cli]
+    fields: [{name: driverMetadata, type: function}]
+    god_class: false
+    split_candidate: false
+    migration_strategy: copy
+    notes: "Reads the installed mongodb package version."
+  - name: sku-configuration
+    kind: config
+    source_loc: "resiliency/sku-config.js:1"
+    used_by_units: [campaign-cli, orchestrator-cli]
+    fields: [{name: workloadThreads, type: function}]
+    god_class: false
+    split_candidate: false
+    migration_strategy: copy
+    notes: "Preserves compute-tier concurrency mapping."

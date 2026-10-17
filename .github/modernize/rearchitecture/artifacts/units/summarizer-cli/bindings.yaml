@@ -1,0 +1,4 @@
+unit: summarizer-cli
+bindings:
+  - {type: convention, name: "Node.js ESM main", source_loc: "resiliency/summarize.js:159", target: main, must_appear_in_target: true, notes: "CLI entry point"}
+runtime_config: []

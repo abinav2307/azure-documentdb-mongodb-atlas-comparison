@@ -1,0 +1,21 @@
+flows:
+  - name: workload-phase
+    medium: file
+    key: phase.txt
+    writer: {unit: orchestrator-cli, source_loc: "resiliency/orchestrate.js:274"}
+    reader: {unit: workload-cli, source_loc: "resiliency/workload.js:74"}
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Assert operations are labeled baseline, scale-up, and post-scale."
+    notes: "Atomic phase file coordinates independent control-plane and data-plane processes."
+  - name: workload-stop
+    medium: file
+    key: stop
+    writer: {unit: orchestrator-cli, source_loc: "resiliency/orchestrate.js:319"}
+    reader: {unit: workload-cli, source_loc: "resiliency/workload.js:207"}
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Assert the workload drains evidence and exits after the stop file appears."
+    notes: "Bounded cross-process shutdown signal."

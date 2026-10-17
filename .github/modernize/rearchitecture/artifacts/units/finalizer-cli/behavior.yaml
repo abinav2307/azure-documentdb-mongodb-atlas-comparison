@@ -1,0 +1,8 @@
+unit: finalizer-cli
+side_effects:
+  - {source_loc: "resiliency/finalize-run.js:470", effect: "writes aggregate evidence, report, and final run document", must_preserve: true}
+branches:
+  - {source_loc: "resiliency/finalize-run.js:187", condition: "one-second scale bucket health and three healthy recovery buckets", behavior: "creates raw and merged availability dips", must_preserve: true}
+error_paths:
+  - {source_loc: "resiliency/finalize-run.js:468", trigger: "schema or arithmetic invariant failure", outcome: "does not emit success", contract: "non-zero CLI exit", must_preserve: true}
+concurrency: {model: async, tx_boundary: {source_loc: "resiliency/finalize-run.js:326", scope: "read immutable local evidence then write derived artifacts", isolation: "none", must_preserve: false}}

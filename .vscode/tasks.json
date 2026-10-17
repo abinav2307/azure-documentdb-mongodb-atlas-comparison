@@ -1,0 +1,101 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Atlas Resiliency: Run 1 unattended",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}\\resiliency\\campaign.js",
+        "--iterations", "1", "--fixed-profile", "--accept-billable-charges",
+        "--prompt-atlas-credentials", "--prompt-results-uri"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Atlas Resiliency: Run 5 unattended",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}\\resiliency\\campaign.js",
+        "--iterations", "5", "--accept-billable-charges",
+        "--prompt-atlas-credentials", "--prompt-results-uri"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Atlas Resiliency: Run 10 unattended",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}\\resiliency\\campaign.js",
+        "--iterations", "10", "--accept-billable-charges",
+        "--prompt-atlas-credentials", "--prompt-results-uri"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Atlas Resiliency: Run 30 unattended",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}\\resiliency\\campaign.js",
+        "--iterations", "30", "--accept-billable-charges",
+        "--prompt-atlas-credentials", "--prompt-results-uri"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Atlas Resiliency: Run 45 unattended",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}\\resiliency\\campaign.js",
+        "--iterations", "45", "--accept-billable-charges",
+        "--prompt-atlas-credentials", "--prompt-results-uri"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Atlas Resiliency: Run 100 unattended",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}\\resiliency\\campaign.js",
+        "--iterations", "100", "--accept-billable-charges",
+        "--prompt-atlas-credentials", "--prompt-results-uri"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Atlas Resiliency: Run 200 unattended",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}\\resiliency\\campaign.js",
+        "--iterations", "200", "--accept-billable-charges",
+        "--prompt-atlas-credentials", "--prompt-results-uri"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Atlas Resiliency: Resume latest campaign",
+      "type": "shell",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}\\resiliency\\campaign.js",
+        "--resume-latest", "--accept-billable-charges",
+        "--prompt-atlas-credentials", "--prompt-results-uri"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ]
+}

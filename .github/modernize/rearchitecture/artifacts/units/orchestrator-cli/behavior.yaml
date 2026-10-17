@@ -1,0 +1,9 @@
+unit: orchestrator-cli
+side_effects:
+  - {source_loc: "resiliency/orchestrate.js:225", effect: "provisions and scales one manifest-approved Azure cluster", must_preserve: true}
+  - {source_loc: "resiliency/orchestrate.js:268", effect: "starts the Node.js workload with the connection string only in child environment", must_preserve: true}
+branches:
+  - {source_loc: "resiliency/orchestrate.js:220", condition: "--validate-only", behavior: "validates ARM template without provisioning", must_preserve: true}
+error_paths:
+  - {source_loc: "resiliency/orchestrate.js:335", trigger: "orchestration failure", outcome: "records sanitized run_failed and preserves state", contract: "failed-awaiting-inspection manifest status", must_preserve: true}
+concurrency: {model: async, tx_boundary: {source_loc: "resiliency/orchestrate.js:297", scope: "ARM polling and workload child run concurrently", isolation: "process boundary", must_preserve: true}}

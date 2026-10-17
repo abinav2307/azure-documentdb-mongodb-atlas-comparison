@@ -1,0 +1,4 @@
+unit: campaign-cli
+bindings:
+  - {type: convention, name: "Node.js ESM main", source_loc: "resiliency/campaign.js:250", target: main, must_appear_in_target: true, notes: "CLI entry point"}
+runtime_config: []

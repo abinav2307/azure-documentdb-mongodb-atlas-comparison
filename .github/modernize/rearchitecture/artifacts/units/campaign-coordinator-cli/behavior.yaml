@@ -1,0 +1,9 @@
+unit: campaign-coordinator-cli
+side_effects:
+  - {source_loc: "resiliency/campaign-coordinator.js:241", effect: "runs manifests sequentially and persists exact result readbacks", must_preserve: true}
+  - {source_loc: "resiliency/campaign-coordinator.js:282", effect: "recovers failures and attempts owned-resource cleanup", must_preserve: true}
+branches:
+  - {source_loc: "resiliency/campaign-coordinator.js:248", condition: "run status indicates completed or resumable work", behavior: "skips, resumes, or executes the run", must_preserve: true}
+error_paths:
+  - {source_loc: "resiliency/campaign-coordinator.js:318", trigger: "run failure", outcome: "persists inconclusive result and continues when safe", contract: "failed run ID in campaign state", must_preserve: true}
+concurrency: {model: async, tx_boundary: {source_loc: "resiliency/campaign-coordinator.js:351", scope: "campaign lock enforces one coordinator", isolation: "exclusive lock file", must_preserve: true}}

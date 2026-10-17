@@ -1,0 +1,12 @@
+node_modules/
+.venv/
+.campaign-local/
+.single-run-local/
+resiliency/campaign.lock
+resiliency/campaign-state.json
+resiliency/atlas-campaign.lock
+resiliency/atlas-campaign-state.json
+resiliency/campaigns/
+resiliency/runs/
+resiliency/results/
+resiliency/__pycache__/

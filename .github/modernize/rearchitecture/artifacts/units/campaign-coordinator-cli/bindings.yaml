@@ -1,0 +1,5 @@
+unit: campaign-coordinator-cli
+bindings:
+  - {type: convention, name: "Node.js ESM main", source_loc: "resiliency/campaign-coordinator.js:368", target: main, must_appear_in_target: true, notes: "CLI entry point"}
+runtime_config:
+  - {key: DOCUMENTDB_RESULTS_URI, source_loc: "resiliency/result-sink.js:29", source: env, default_value: "", must_appear_in_target: true, notes: "Long-lived result-sink connection string"}

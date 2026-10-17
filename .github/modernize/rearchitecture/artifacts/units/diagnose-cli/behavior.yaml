@@ -1,0 +1,7 @@
+unit: diagnose-cli
+side_effects:
+  - {source_loc: "resiliency/diagnose-deployment.js:8", effect: "reads deployment and operation status through ARM", must_preserve: true}
+branches: []
+error_paths:
+  - {source_loc: "resiliency/diagnose-deployment.js:6", trigger: "missing deployment name", outcome: "rejects invocation", contract: "non-zero CLI exit", must_preserve: true}
+concurrency: {model: async, tx_boundary: {source_loc: "resiliency/diagnose-deployment.js:4", scope: "read-only ARM requests", isolation: "none", must_preserve: false}}

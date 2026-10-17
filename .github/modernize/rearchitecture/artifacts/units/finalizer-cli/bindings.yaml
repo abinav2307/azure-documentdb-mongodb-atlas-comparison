@@ -1,0 +1,4 @@
+unit: finalizer-cli
+bindings:
+  - {type: convention, name: "Node.js ESM main", source_loc: "resiliency/finalize-run.js:486", target: main, must_appear_in_target: true, notes: "CLI entry point"}
+runtime_config: []

@@ -1,0 +1,8 @@
+unit: summarizer-cli
+side_effects:
+  - {source_loc: "resiliency/summarize.js:150", effect: "writes summary.json and prints aggregate statistics", must_preserve: true}
+branches:
+  - {source_loc: "resiliency/summarize.js:135", condition: "no scale-up operations", behavior: "prints INCONCLUSIVE instead of availability", must_preserve: true}
+error_paths:
+  - {source_loc: "resiliency/summarize.js:11", trigger: "invalid JSONL", outcome: "reports exact line number", contract: "non-zero CLI exit", must_preserve: true}
+concurrency: {model: async, tx_boundary: {source_loc: "resiliency/summarize.js:144", scope: "read local spool and write one summary", isolation: "none", must_preserve: false}}

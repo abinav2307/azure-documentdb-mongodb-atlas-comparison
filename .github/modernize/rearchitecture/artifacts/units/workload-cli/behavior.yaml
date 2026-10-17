@@ -1,0 +1,9 @@
+unit: workload-cli
+side_effects:
+  - {source_loc: "resiliency/workload.js:217", effect: "inserts exact 1 KiB BSON documents through mongodb 7.6.0", must_preserve: true}
+  - {source_loc: "resiliency/workload.js:50", effect: "appends sanitized operation evidence to local JSONL", must_preserve: true}
+branches:
+  - {source_loc: "resiliency/workload.js:92", condition: "driver or validation operation error", behavior: "records retry and terminal outcome without leaking messages", must_preserve: true}
+error_paths:
+  - {source_loc: "resiliency/workload.js:155", trigger: "invalid environment or CLI configuration", outcome: "prints configuration category and exits 2", contract: "exit code 2", must_preserve: true}
+concurrency: {model: event-loop, tx_boundary: {source_loc: "resiliency/workload.js:205", scope: "configured async worker loops; each MongoDB operation is independent", isolation: "none", must_preserve: true}}
