@@ -8,7 +8,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (args._.length !== 1 || !args.evidence) throw new Error("Usage: cleanup-run.js <manifest> --evidence <path>");
   const manifestPath = resolve(args._[0]);
   const manifest = await readJson(manifestPath);
-  validateAtlasManifest(manifest);
+  validateAtlasManifest(manifest, { cleanupOnly: true });
   const evidencePath = resolve(args.evidence);
   await mkdir(dirname(evidencePath), { recursive: true });
   await new AtlasClient().cleanup(manifest, manifestPath, evidencePath);

@@ -73,16 +73,17 @@ function apiMock(value) {
   };
 }
 
-test("Atlas preserves region choices, phase timing, storage and workload settings", () => {
-  assert.deepEqual(Object.keys(ATLAS_REGIONS).sort(), [...REGIONS].sort());
-  for (const [initial, target] of [["M10", "M20"], ["M20", "M30"], ["M30", "M40"], ["M40", "M50"]]) {
+test("Atlas applies the restricted regions, one-step tiers and 32 GB while preserving workload settings", () => {
+  assert.deepEqual(REGIONS.map((region) => ATLAS_REGIONS[region]),
+    ["US_EAST_2", "US_WEST_2", "US_EAST", "US_NORTH_CENTRAL"]);
+  for (const [initial, target] of [["M10", "M20"], ["M20", "M30"]]) {
     const { value, document } = fixture(initial, target);
     assert.equal(value.experiment.baselineSeconds, 120);
     assert.equal(value.experiment.postScaleSeconds, 120);
     assert.equal(value.experiment.timeoutSeconds, 5);
     assert.equal(value.experiment.maxDataPlaneRetries, 0);
     assert.equal(value.experiment.operationsPerSecondCeiling, 0);
-    assert.equal(value.experiment.storageSizeGb, ["M10", "M20"].includes(initial) ? 128 : 1024);
+    assert.equal(value.experiment.storageSizeGb, 32);
     assert.equal(value.experiment.highAvailability, "AtlasReplicaSet");
     assert.equal(value.atlas.regionName, "US_EAST_2");
     assert.equal(document.agentName, ATLAS_AGENT);
@@ -118,7 +119,7 @@ test("Atlas provisioning and scaling reject out-of-policy tiers before any API r
   const client = new AtlasClient({
     env: ENV, fetchImpl: async () => assert.fail("Out-of-policy tiers must not reach the Atlas API")
   });
-  for (const [initial, target] of [["M50", "M60"], ["M40", "M60"], ["M20", "M200"]]) {
+  for (const [initial, target] of [["M50", "M60"], ["M40", "M60"], ["M20", "M200"], ["M30", "M40"], ["M10", "M30"], ["M20", "M40"]]) {
     const { value } = fixture();
     Object.assign(value.experiment, { initialComputeTier: initial, targetComputeTier: target });
     await assert.rejects(client.provision(value), /Unsupported initial|Unapproved SKU transition/);
@@ -149,6 +150,110 @@ test("Atlas is the only campaign provider and preparation writes schema-valid pl
   }
 });
 
+test("generation and Atlas requests enforce region and storage policy before network access", async () => {
+  const client = new AtlasClient({
+    env: ENV, fetchImpl: async () => assert.fail("Invalid configurations must not reach Atlas")
+  });
+  const created = new Date("2026-01-01T00:00:00Z");
+  for (const region of REGIONS) {
+    for (const [initial, target] of [["M10", "M20"], ["M20", "M30"]]) {
+      const value = manifest("run-1", "abinav-resiliency-agent-rnd-abc12", created, region, initial, target, PROJECT);
+      value.approvals.executionApproved = true;
+      value.approvals.cleanupPreapproved = true;
+      validateAtlasManifest(value, { env: {} });
+      for (const tier of [initial, target]) {
+        const config = client.clusterBody(value, tier).replicationSpecs[0].regionConfigs[0];
+        assert.equal(config.regionName, ATLAS_REGIONS[region]);
+        assert.deepEqual(config.electableSpecs, { instanceSize: tier, nodeCount: 3, diskSizeGB: 32 });
+        assert.equal(config.autoScaling.diskGB.enabled, false);
+        assert.equal(config.autoScaling.compute.enabled, false);
+      }
+      const document = plannedDocument("run-1", "cluster", created, region, initial, target, PROJECT);
+      assert.deepEqual(validate(document, schema), []);
+    }
+  }
+  for (const region of ["westeurope", "westus", "centralus", "invalid"]) {
+    assert.throws(() => manifest("run-1", "cluster", created, region, "M10", "M20", PROJECT),
+      /Unsupported Atlas Azure region/);
+    assert.throws(() => plannedDocument("run-1", "cluster", created, region, "M10", "M20", PROJECT),
+      /Unsupported Atlas Azure region/);
+  }
+  for (const storage of [0, 31, 33, 128, 1024, "32"]) {
+    assert.throws(() => manifest("run-1", "cluster", created, "eastus2", "M10", "M20", PROJECT, storage),
+      /Unapproved storage size/);
+    assert.throws(() => plannedDocument("run-1", "cluster", created, "eastus2", "M10", "M20", PROJECT, storage),
+      /Unapproved storage size/);
+  }
+  const mutations = [
+    (value) => { value.location = "westeurope"; value.atlas.regionName = "EUROPE_WEST"; },
+    ...[31, 33, 128, 1024, "32"].map((storage) => (value) => { value.experiment.storageSizeGb = storage; })
+  ];
+  const root = await mkdtemp(resolve(tmpdir(), "atlas-policy-"));
+  try {
+    for (const mutate of mutations) {
+      const { value } = fixture();
+      mutate(value);
+      assert.throws(() => validateAtlasManifest(value, { env: {} }), /Unapproved region|Unapproved storage/);
+      assert.throws(() => client.clusterBody(value, "M10"), /Unapproved region|Unapproved storage/);
+      await assert.rejects(client.provision(value), /Unapproved region|Unapproved storage/);
+      await assert.rejects(client.scaleBody(value), /Unapproved region|Unapproved storage/);
+      const path = resolve(root, "manifest.json");
+      await writeFile(path, JSON.stringify(value));
+      await assert.rejects(validateManifest(path, { env: {} }), /Unapproved region|Unapproved storage/);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("result validation rejects larger disks, other regions and non-adjacent tiers", () => {
+  for (const change of [
+    (document) => { document.initialComputeTier = "M30"; document.targetComputeTier = "M40"; },
+    (document) => { document.targetComputeTier = "M30"; },
+    (document) => { document.storageSizeGb = 128; },
+    (document) => { document.storageSizeGb = "32"; },
+    (document) => { document.region = "westeurope"; }
+  ]) {
+    const { document } = fixture();
+    change(document);
+    assert.notDeepEqual(validate(document, schema), []);
+  }
+});
+
+test("ownership-verified cleanup remains available for legacy disks, tiers and regions", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "atlas-legacy-cleanup-"));
+  try {
+    const { value } = fixture();
+    value.location = "westeurope";
+    value.atlas.regionName = "EUROPE_WEST";
+    value.clusterName = "abinav-resiliency-agent-rnd-abc12";
+    Object.assign(value.experiment, {
+      initialComputeTier: "M30", targetComputeTier: "M50", storageSizeGb: 1024, workloadThreads: 2
+    });
+    value.plannedResourceIds = atlasResourceIds(value);
+    const [clusterPath] = value.plannedResourceIds;
+    value.ownedResourceIds = [clusterPath];
+    const path = resolve(root, "manifest.json");
+    await writeFile(path, JSON.stringify(value));
+    await assert.rejects(validateManifest(path, { env: {} }), /Unsupported initial/);
+    await validateManifest(path, { env: {}, cleanupOnly: true });
+    const mock = apiMock(value);
+    mock.resources.set(clusterPath, {
+      name: value.clusterName, groupId: PROJECT, stateName: "IDLE",
+      tags: [{ key: "runId", value: value.runId }, { key: "purpose", value: "atlas-resiliency" }]
+    });
+    const client = new AtlasClient({ env: ENV, fetchImpl: mock.fetchImpl, wait: async () => {} });
+    const evidence = await client.cleanup(value, path, resolve(root, "cleanup.json"));
+    assert.ok(evidence.cleanupCompletedUtc);
+    assert.equal(mock.resources.size, 0);
+    assert.deepEqual(mock.calls.filter((call) => call.method === "DELETE").map((call) => call.path), [clusterPath]);
+    value.ownedResourceIds = ["/groups/another-project/clusters/other"];
+    await assert.rejects(client.cleanup(value, path, resolve(root, "cleanup.json")), /outside the approved run/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("Atlas mocked create, exact tier scale and verified cleanup use only run-owned resources", async () => {
   const root = await mkdtemp(resolve(tmpdir(), "atlas-lifecycle-"));
   try {
@@ -163,7 +268,7 @@ test("Atlas mocked create, exact tier scale and verified cleanup use only run-ow
     const created = mock.calls.find((call) => call.method === "POST" && call.path.endsWith("/clusters")).body;
     assert.equal(created.diskSizeGB, undefined);
     assert.deepEqual(created.replicationSpecs[0].regionConfigs[0].electableSpecs, {
-      instanceSize: "M10", nodeCount: 3, diskSizeGB: 128
+      instanceSize: "M10", nodeCount: 3, diskSizeGB: 32
     });
     assert.equal(created.replicationSpecs[0].regionConfigs[0].autoScaling.compute.enabled, false);
     const user = mock.calls.find((call) => call.method === "POST" && call.path.endsWith("/databaseUsers")).body;
@@ -175,6 +280,9 @@ test("Atlas mocked create, exact tier scale and verified cleanup use only run-ow
     assert.doesNotMatch(await readFile(path, "utf8"), /test-db-password|test-client-secret|test-access-token/);
     const [clusterPath] = atlasResourceIds(value);
     const scale = await client.scaleBody(value);
+    assert.deepEqual(scale.replicationSpecs[0].regionConfigs[0].electableSpecs, {
+      instanceSize: "M20", nodeCount: 3, diskSizeGB: 32
+    });
     assert.equal(scale.replicationSpecs[0].id, "replica-set-id");
     assert.equal(scale.name, undefined);
     await client.request("PATCH", clusterPath, { body: scale });

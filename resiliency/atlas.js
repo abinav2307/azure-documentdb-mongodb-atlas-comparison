@@ -1,8 +1,9 @@
 import { atomicJson, round, sanitizeError, sanitizeStackTrace, sleep, utcNow } from "./common.js";
-import { validateComputeTransition, workloadThreads } from "./sku-config.js";
+import { STORAGE_SIZE_GB, validateComputeTransition, workloadThreads } from "./sku-config.js";
 import { sendControlPlaneFailureEmail } from "./email-notifier.js";
 
 export const ATLAS_AGENT = "MongoDB Atlas Resiliency Agent";
+export const CAMPAIGN_REGIONS = Object.freeze(["eastus2", "westus2", "eastus", "northcentralus"]);
 export const ATLAS_REGIONS = Object.freeze({
   uaecentral: "UAE_CENTRAL", uaenorth: "UAE_NORTH", eastasia: "ASIA_EAST",
   southeastasia: "ASIA_SOUTH_EAST", australiacentral: "AUSTRALIA_CENTRAL",
@@ -37,7 +38,7 @@ export function requireAtlasProjectId(projectId) {
   return projectId;
 }
 
-export function validateAtlasManifest(manifest, { approved = true, env = process.env } = {}) {
+export function validateAtlasManifest(manifest, { approved = true, env = process.env, cleanupOnly = false } = {}) {
   if (manifest.provider !== "atlas" || manifest.schemaVersion !== 3 ||
       !/^[A-Za-z0-9-]+$/.test(manifest.runId ?? "") ||
       !/^abinav-resiliency-agent-[a-z0-9]+-[a-z0-9]{5}$/.test(manifest.clusterName ?? "") ||
@@ -64,6 +65,15 @@ export function validateAtlasManifest(manifest, { approved = true, env = process
     throw new Error("Atlas resources are outside the approved run");
   }
   const experiment = manifest.experiment;
+  if (!cleanupOnly) {
+    validateComputeTransition(experiment.initialComputeTier, experiment.targetComputeTier);
+    if (!CAMPAIGN_REGIONS.includes(manifest.location)) {
+      throw new Error(`Unapproved region for ${manifest.runId}: ${manifest.location}`);
+    }
+    if (experiment.storageSizeGb !== STORAGE_SIZE_GB) {
+      throw new Error(`Unapproved storage size for ${manifest.runId}: expected ${STORAGE_SIZE_GB} GB`);
+    }
+  }
   if (experiment.highAvailability !== "AtlasReplicaSet" ||
       experiment.shardCount !== 1 || !["always-delete", "retain"].includes(experiment.cleanupPolicy) ||
       experiment.workloadThreads !== workloadThreads(experiment.initialComputeTier)) {
@@ -151,6 +161,10 @@ export class AtlasClient {
   }
 
   clusterBody(manifest, tier) {
+    validateAtlasManifest(manifest, { env: this.env });
+    if (![manifest.experiment.initialComputeTier, manifest.experiment.targetComputeTier].includes(tier)) {
+      throw new Error(`Unapproved cluster tier: ${tier}`);
+    }
     return {
       name: manifest.clusterName, clusterType: "REPLICASET",
       backupEnabled: false, pitEnabled: false,
@@ -175,7 +189,7 @@ export class AtlasClient {
   }
 
   async scaleBody(manifest) {
-    validateComputeTransition(manifest.experiment.initialComputeTier, manifest.experiment.targetComputeTier);
+    validateAtlasManifest(manifest, { env: this.env });
     const [path] = atlasResourceIds(manifest);
     const resource = await this.request("GET", path);
     this.verifyCluster(resource, manifest);
@@ -234,7 +248,7 @@ export class AtlasClient {
   }
 
   async provision(manifest, manifestPath, password, events, stopped) {
-    validateComputeTransition(manifest.experiment.initialComputeTier, manifest.experiment.targetComputeTier);
+    validateAtlasManifest(manifest, { env: this.env });
     const [clusterPath, userPath] = atlasResourceIds(manifest);
     const cluster = await this.request("GET", clusterPath, { allowNotFound: true });
     const user = await this.request("GET", userPath, { allowNotFound: true });
@@ -292,7 +306,7 @@ export class AtlasClient {
   }
 
   async cleanup(manifest, manifestPath, evidencePath) {
-    validateAtlasManifest(manifest, { env: this.env });
+    validateAtlasManifest(manifest, { env: this.env, cleanupOnly: true });
     if (!manifest.ownedResourceIds.length) throw new Error("No Atlas resources are recorded as owned by this run");
     const [clusterPath, userPath] = atlasResourceIds(manifest);
     const submitted = utcNow();

@@ -1,16 +1,17 @@
-export const SKU_TIERS = Object.freeze(["M10", "M20", "M30", "M40", "M50"]);
-export const INITIAL_SKUS = Object.freeze(["M10", "M20", "M30", "M40"]);
+export const SKU_TIERS = Object.freeze(["M10", "M20", "M30"]);
+export const INITIAL_SKUS = Object.freeze(["M10", "M20"]);
+export const STORAGE_SIZE_GB = 32;
 
 export function higherSkus(initialTier) {
   if (!INITIAL_SKUS.includes(initialTier)) {
     throw new Error(`Unsupported initial compute tier: ${initialTier}`);
   }
-  return SKU_TIERS.slice(SKU_TIERS.indexOf(initialTier) + 1);
+  return [SKU_TIERS[SKU_TIERS.indexOf(initialTier) + 1]];
 }
 
 export function validateComputeTransition(initialTier, targetTier) {
   if (!higherSkus(initialTier).includes(targetTier)) {
-    throw new Error(`Unapproved SKU transition: ${initialTier} -> ${targetTier}; target must be higher than initial and at most M50`);
+    throw new Error(`Unapproved SKU transition: ${initialTier} -> ${targetTier}; only M10 -> M20 and M20 -> M30 are allowed`);
   }
 }
 

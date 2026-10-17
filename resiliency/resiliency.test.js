@@ -34,31 +34,34 @@ test("campaign defaults and SKU mappings are preserved", () => {
   assert.deepEqual(WORKLOAD_THREADS_BY_SKU, {
     M10: 1, M20: 1, M30: 2, M40: 4, M50: 8, M60: 16, M80: 32
   });
-  assert.deepEqual(higherSkus("M10"), ["M20", "M30", "M40", "M50"]);
-  assert.deepEqual(higherSkus("M20"), ["M30", "M40", "M50"]);
-  assert.deepEqual(higherSkus("M30"), ["M40", "M50"]);
-  assert.deepEqual(higherSkus("M40"), ["M50"]);
+  assert.deepEqual(higherSkus("M10"), ["M20"]);
+  assert.deepEqual(higherSkus("M20"), ["M30"]);
   assert.equal(workloadThreads("M80"), 32);
   assert.equal(new Set(REGIONS).size, REGIONS.length);
-  assert.deepEqual(INITIAL_SKUS, ["M10", "M20", "M30", "M40"]);
+  assert.deepEqual(INITIAL_SKUS, ["M10", "M20"]);
+  assert.deepEqual(REGIONS, ["eastus2", "westus2", "eastus", "northcentralus"]);
 });
 
-test("every randomized SKU transition uses M10 through M40 initially and at most M50 as target", (t) => {
+test("every randomized configuration uses the four regions and exactly one tier step from M10 or M20", (t) => {
   for (const [initialIndex, initial] of INITIAL_SKUS.entries()) {
-    for (const [targetIndex, target] of higherSkus(initial).entries()) {
-      const samples = [initialIndex / INITIAL_SKUS.length, 0, targetIndex / higherSkus(initial).length];
+    for (const [regionIndex, region] of REGIONS.entries()) {
+      const target = higherSkus(initial)[0];
+      const samples = [(initialIndex + 0.5) / INITIAL_SKUS.length, (regionIndex + 0.5) / REGIONS.length, 0.99];
       const random = t.mock.method(Math, "random", () => samples.shift());
-      assert.deepEqual(randomConfiguration(), [REGIONS[0], initial, target]);
+      assert.deepEqual(randomConfiguration(), [region, initial, target]);
       assert.equal(samples.length, 0);
       random.mock.restore();
     }
   }
-  for (const initial of ["M50", "M60", "M80", "M200", "invalid"]) {
+  for (const initial of ["M30", "M40", "M50", "M60", "M80", "M200", "invalid"]) {
     assert.throws(() => higherSkus(initial), /Unsupported initial/);
     assert.throws(() => validateComputeTransition(initial, "M50"), /Unsupported initial/);
   }
   for (const target of ["M10", "M20", "M60", "M80", "M200", "invalid"]) {
     assert.throws(() => validateComputeTransition("M20", target), /Unapproved SKU transition/);
+  }
+  for (const target of ["M10", "M30", "M40", "M50", "M60", "invalid"]) {
+    assert.throws(() => validateComputeTransition("M10", target), /Unapproved SKU transition/);
   }
 });
 
@@ -70,7 +73,7 @@ test("manifest generation and coordinator validation reject out-of-policy SKU tr
       new Date("2026-01-01T00:00:00Z"), "eastus2", initial, target, PROJECT
     );
     const path = resolve(root, "manifest.json");
-    for (const [initial, target] of [["M50", "M60"], ["M40", "M60"], ["M20", "M200"], ["M30", "M20"]]) {
+    for (const [initial, target] of [["M50", "M60"], ["M40", "M60"], ["M20", "M200"], ["M30", "M40"], ["M10", "M30"], ["M20", "M40"]]) {
       assert.throws(() => create(initial, target), /Unsupported initial|Unapproved SKU transition/);
       const value = create("M20", "M30");
       Object.assign(value.experiment, { initialComputeTier: initial, targetComputeTier: target });
@@ -85,10 +88,11 @@ test("manifest generation and coordinator validation reject out-of-policy SKU tr
   }
 });
 
-test("Atlas low tiers retain 128 GB and all tiers use a replica set", async () => {
-  assert.equal(storageSizeForInitialTier("M10"), 128);
-  assert.equal(storageSizeForInitialTier("M20"), 128);
-  assert.equal(storageSizeForInitialTier("M30"), 1024);
+test("Atlas uses exactly 32 GB and a replica set for both allowed initial tiers", async () => {
+  assert.equal(storageSizeForInitialTier("M10"), 32);
+  assert.equal(storageSizeForInitialTier("M20"), 32);
+  assert.throws(() => storageSizeForInitialTier("M30"), /Unsupported initial/);
+  assert.throws(() => storageSizeForInitialTier("M10", 128), /Unapproved storage size/);
   const root = await mkdtemp(resolve(tmpdir(), "atlas-manifest-"));
   try {
     const value = manifest(
@@ -96,7 +100,7 @@ test("Atlas low tiers retain 128 GB and all tiers use a replica set", async () =
       new Date("2026-01-01T00:00:00Z"), "eastus2", "M20", "M30", PROJECT
     );
     assert.equal(value.experiment.highAvailability, "AtlasReplicaSet");
-    assert.equal(value.experiment.storageSizeGb, 128);
+    assert.equal(value.experiment.storageSizeGb, 32);
     assert.equal(value.experiment.workloadThreads, 1);
     value.approvals.executionApproved = true;
     value.approvals.cleanupPreapproved = true;
@@ -312,7 +316,7 @@ test("planned Atlas document passes the schema", async () => {
   const schema = JSON.parse(await readFile(resolve("resiliency/run-document.schema.json"), "utf8"));
   const document = plannedDocument(
     "run-1", "cluster", new Date("2026-01-01T00:00:00Z"),
-    "eastus2", "M30", "M40", PROJECT
+    "eastus2", "M20", "M30", PROJECT
   );
   assert.equal("exceptions" in document, false);
   assert.equal("exceptions" in schema.properties, false);
@@ -380,7 +384,7 @@ test("finalized documents aggregate failures without persisting exceptions", asy
       runId: "run-1", provider: "atlas", atlas: { projectId: PROJECT },
       clusterName: "cluster", location: "eastus2",
       experiment: {
-        initialComputeTier: "M10", targetComputeTier: "M20", storageSizeGb: 128,
+        initialComputeTier: "M10", targetComputeTier: "M20", storageSizeGb: 32,
         timeoutSeconds: 5, maxDataPlaneRetries: 0, workloadThreads: 1
       }
     };
@@ -451,7 +455,7 @@ test("campaign preparation materializes Atlas identity and Node.js metadata", as
     const schema = await readFile(resolve("resiliency/run-document.schema.json"));
     await import("node:fs/promises").then(({ writeFile }) =>
       writeFile(resolve(root, "resiliency/run-document.schema.json"), schema));
-    const planPath = await prepare(root, 1, () => ["eastus2", "M30", "M40"], { atlasProjectId: PROJECT });
+    const planPath = await prepare(root, 1, () => ["eastus2", "M20", "M30"], { atlasProjectId: PROJECT });
     const plan = JSON.parse(await readFile(planPath, "utf8"));
     const manifestPath = resolve(root, plan.manifests[0]);
     const document = JSON.parse(await readFile(resolve(manifestPath, "../planned-run-document.json"), "utf8"));
@@ -473,7 +477,7 @@ test("fixed profile preparation uses the approved low-cost configuration", async
       writeFile(resolve(root, "resiliency/run-document.schema.json"), schema));
     const planPath = await prepare(
       root, 1, () => ["eastus2", "M10", "M20"],
-      { clusterLabel: "eus2", storageSizeGb: 128, atlasProjectId: PROJECT }
+      { clusterLabel: "eus2", storageSizeGb: 32, atlasProjectId: PROJECT }
     );
     const plan = JSON.parse(await readFile(planPath, "utf8"));
     const manifestPath = resolve(root, plan.manifests[0]);
@@ -484,7 +488,7 @@ test("fixed profile preparation uses the approved low-cost configuration", async
     assert.match(runManifest.clusterName, /^abinav-resiliency-agent-eus2-[a-z0-9]{5}$/);
     assert.equal(runManifest.location, "eastus2");
     assert.deepEqual(runManifest.experiment, {
-      initialComputeTier: "M10", targetComputeTier: "M20", storageSizeGb: 128,
+      initialComputeTier: "M10", targetComputeTier: "M20", storageSizeGb: 32,
       shardCount: 1, highAvailability: "AtlasReplicaSet",
       baselineSeconds: 120, postScaleSeconds: 120,
       requestPacing: "unthrottled-1-threaded",
@@ -492,7 +496,7 @@ test("fixed profile preparation uses the approved low-cost configuration", async
       sampleIntervalSeconds: 1, timeoutSeconds: 5, maxDataPlaneRetries: 0,
       maxProvisioningRetries: 3, cleanupPolicy: "always-delete"
     });
-    assert.equal(document.storageSizeGb, 128);
+    assert.equal(document.storageSizeGb, 32);
     runManifest.approvals.executionApproved = true;
     runManifest.approvals.cleanupPreapproved = true;
     await import("node:fs/promises").then(({ writeFile }) =>
@@ -570,6 +574,9 @@ test("campaign CLI prepares exactly 200 runs by default and with an explicit cou
         assert.equal(new Set(manifests.map((value) => value.clusterName)).size, 200);
         for (const value of manifests) {
           assert.equal(value.experiment.cleanupPolicy, "always-delete");
+          assert.equal(value.experiment.storageSizeGb, 32);
+          assert.ok(REGIONS.includes(value.location));
+          assert.ok(INITIAL_SKUS.includes(value.experiment.initialComputeTier));
           assert.equal(value.approvals.executionApproved, false);
           validateComputeTransition(value.experiment.initialComputeTier, value.experiment.targetComputeTier);
         }

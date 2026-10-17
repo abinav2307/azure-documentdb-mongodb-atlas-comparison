@@ -3,17 +3,19 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { driverMetadata } from "./driver-info.js";
-import { INITIAL_SKUS, higherSkus, validateComputeTransition, workloadThreads } from "./sku-config.js";
+import { INITIAL_SKUS, STORAGE_SIZE_GB, higherSkus, validateComputeTransition, workloadThreads } from "./sku-config.js";
 import { isMain, parseArgs, randomSuffix, readJson, readSecret, runNode, utcNow, writeJson } from "./common.js";
 import { validate } from "./validate-run-document.js";
-import { ATLAS_AGENT, ATLAS_REGIONS, atlasResourceIds, requireAtlasProjectId, validateAtlasManifest } from "./atlas.js";
+import { ATLAS_AGENT, ATLAS_REGIONS, CAMPAIGN_REGIONS, atlasResourceIds, requireAtlasProjectId, validateAtlasManifest } from "./atlas.js";
 
 export { INITIAL_SKUS, SKU_TIERS, higherSkus } from "./sku-config.js";
 export const DEFAULT_ITERATIONS = 200;
-export const REGIONS = Object.freeze(Object.keys(ATLAS_REGIONS));
+export const REGIONS = CAMPAIGN_REGIONS;
 
-export function storageSizeForInitialTier(initialTier, requested = 1024) {
-  return ["M10", "M20"].includes(initialTier) ? 128 : requested;
+export function storageSizeForInitialTier(initialTier, requested = STORAGE_SIZE_GB) {
+  higherSkus(initialTier);
+  if (requested !== STORAGE_SIZE_GB) throw new Error(`Unapproved storage size: expected ${STORAGE_SIZE_GB} GB`);
+  return STORAGE_SIZE_GB;
 }
 
 function choose(values) {
@@ -31,10 +33,11 @@ function compactUtc(date) {
 
 export function plannedDocument(
   runId, cluster, created, region, initialTier, targetTier, projectId = process.env.ATLAS_PROJECT_ID,
-  storageSizeGb = 1024
+  storageSizeGb = STORAGE_SIZE_GB
 ) {
   requireAtlasProjectId(projectId);
   validateComputeTransition(initialTier, targetTier);
+  if (!REGIONS.includes(region)) throw new Error(`Unsupported Atlas Azure region: ${region}`);
   const emptyMetrics = () => ({
     attempted: 0, succeeded: 0, failed: 0, availabilityPercent: null, observedSeconds: 0
   });
@@ -69,11 +72,11 @@ export function plannedDocument(
 
 export function manifest(
   runId, cluster, created, region, initialTier, targetTier, projectId = process.env.ATLAS_PROJECT_ID,
-  storageSizeGb = 1024
+  storageSizeGb = STORAGE_SIZE_GB
 ) {
   requireAtlasProjectId(projectId);
   validateComputeTransition(initialTier, targetTier);
-  if (!ATLAS_REGIONS[region]) throw new Error(`Unsupported Atlas Azure region: ${region}`);
+  if (!REGIONS.includes(region)) throw new Error(`Unsupported Atlas Azure region: ${region}`);
   const expiresAt = new Date(created.getTime() + 24 * 3_600_000).toISOString();
   const threadCount = workloadThreads(initialTier);
   const value = {
@@ -108,7 +111,7 @@ export function manifest(
 
 export async function prepare(
   root, iterations, configuration = randomConfiguration,
-  { clusterLabel = "rnd", storageSizeGb = 1024, atlasProjectId = process.env.ATLAS_PROJECT_ID } = {}
+  { clusterLabel = "rnd", storageSizeGb = STORAGE_SIZE_GB, atlasProjectId = process.env.ATLAS_PROJECT_ID } = {}
 ) {
   requireAtlasProjectId(atlasProjectId);
   const created = new Date();
@@ -226,7 +229,7 @@ export async function main(
   else if (args["resume-latest"]) planPath = await latestAtlasPlan(resolve(root, "resiliency", "campaigns"));
   else if (args["fixed-profile"]) {
     planPath = await prepare(root, 1, () => ["eastus2", "M10", "M20"], {
-      clusterLabel: "eus2", storageSizeGb: 128
+      clusterLabel: "eus2", storageSizeGb: STORAGE_SIZE_GB
     });
   } else planPath = await prepare(root, args.iterations, randomConfiguration);
   let plan = await readJson(planPath);

@@ -59,15 +59,16 @@ export class CampaignLock {
   }
 }
 
-export async function validateManifest(path, { env = process.env } = {}) {
+export async function validateManifest(path, { env = process.env, cleanupOnly = false } = {}) {
   const manifest = await readJson(path);
   const runId = String(manifest.runId ?? "");
   const cluster = String(manifest.clusterName ?? "");
   if (!runId || !CLUSTER_PATTERN.test(cluster)) throw new Error(`Invalid run ID or cluster name in ${path}`);
   const region = String(manifest.location ?? "");
   const experiment = manifest.experiment ?? {};
+  validateAtlasManifest(manifest, { env, cleanupOnly });
+  if (cleanupOnly) return manifest;
   validateComputeTransition(experiment.initialComputeTier, experiment.targetComputeTier);
-  validateAtlasManifest(manifest, { env });
   if (!ALLOWED_REGIONS.has(region)) throw new Error(`Unapproved region for ${runId}: ${region}`);
   const fixedProfile = cluster.startsWith("abinav-resiliency-agent-eus2-");
   if (fixedProfile && (
@@ -87,7 +88,7 @@ export async function validateManifest(path, { env = process.env } = {}) {
 }
 
 async function cleanupRun(manifestPath, cleanupPath) {
-  const manifest = await validateManifest(manifestPath);
+  const manifest = await validateManifest(manifestPath, { cleanupOnly: true });
   return new AtlasClient().cleanup(manifest, manifestPath, cleanupPath);
 }
 
@@ -255,7 +256,7 @@ export async function runOne({
 export async function recoverFailedRun({
   manifestPath, sink, root, schemaPath, statePath, error, cleanupResources = cleanupRun
 }) {
-  const manifest = await validateManifest(manifestPath);
+  const manifest = await validateManifest(manifestPath, { cleanupOnly: true });
   const runId = manifest.runId;
   const resultDirectory = resolve(root, "resiliency/results", runId);
   await mkdir(resultDirectory, { recursive: true });

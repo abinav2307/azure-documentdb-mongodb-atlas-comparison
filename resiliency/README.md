@@ -62,7 +62,7 @@ $env:ATLAS_PROJECT_ID = "<atlas-project-id>"
 node .\resiliency\campaign.js --iterations 1 --fixed-profile --prompt-atlas-credentials --prompt-results-uri
 ```
 
-The fixed profile uses East US 2 (`US_EAST_2`), M10 to M20, and 128 GB per node.
+The fixed profile uses East US 2 (`US_EAST_2`), M10 to M20, and 32 GB per node.
 The exact plan is displayed before requesting an approval token. To generate a
 plan without credentials, approval or cloud changes:
 
@@ -100,20 +100,25 @@ existing plan preserves its original run count; it does not expand it to 200.
 
 | Initial compute tier | Allowed target compute tiers | Storage per node | Workload threads |
 |---|---|---|---|
-| M10 | M20, M30, M40, M50 | 128 GB | 1 |
-| M20 | M30, M40, M50 | 128 GB | 1 |
-| M30 | M40, M50 | 1024 GB | 2 |
-| M40 | M50 | 1024 GB | 4 |
+| M10 | M20 | 32 GB | 1 |
+| M20 | M30 | 32 GB | 1 |
 
 Every cluster is a **three-node replica set** with one shard. Compute and disk
-autoscaling are disabled. Randomized runs select from the region map in
-[atlas.js](./atlas.js). The selected region, tier, disk size and node count are
-checked after provisioning and scale-up.
+autoscaling are disabled. Only `eastus2`, `westus2`, `eastus` and
+`northcentralus` are allowed, mapped respectively to Atlas `US_EAST_2`,
+`US_WEST_2`, `US_EAST` and `US_NORTH_CENTRAL`. Scaling is exactly one tier up;
+disk size remains 32 GB per node. The selected region, tier, disk size and node
+count are checked after provisioning and scale-up.
 
 Atlas tier/storage limits and regional capacity can reject a planned
-configuration. In particular, 1024 GB may exceed a smaller tier's disk-to-RAM
-limit. Such runs fail explicitly and are reported as inconclusive, never silently
+configuration. Such runs fail explicitly and are reported as inconclusive, never silently
 substituted with another tier or storage size. Start with the fixed profile.
+
+Prepare a new plan for this policy. Previously prepared plans with other tiers,
+storage sizes or regions are rejected for execution rather than rewritten.
+Historical files and persisted results are not modified. The manual cleanup
+command still accepts approved, ownership-verified legacy Atlas manifests so
+these policy restrictions do not prevent deletion of older run-owned resources.
 
 ## Workload and measurements
 

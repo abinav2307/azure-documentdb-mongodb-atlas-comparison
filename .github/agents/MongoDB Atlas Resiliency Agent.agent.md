@@ -18,10 +18,13 @@ API; no Azure subscription authentication or cloud-management CLI is required.
 - Start with a single East US 2 M10-to-M20 run using `--iterations 1 --fixed-profile`.
 - Randomized campaigns default to 200 sequential runs and accept 1 through 200.
   Obtain approval for the full materialized plan; never expand a resumed plan.
-- Initial tiers are M10, M20, M30 and M40 only. Targets must be higher and cannot
-  exceed M50. Never silently change the planned region, disk size, or topology.
-- Atlas uses one three-node replica set. M10/M20 use 128 GB per node; M30/M40 use
-  1024 GB per node. Unsupported configurations must fail explicitly.
+- Initial tiers are M10 or M20 only, with exactly one step up: M10 to M20 or
+  M20 to M30. Allow only eastus2, westus2, eastus and northcentralus.
+- Atlas uses one three-node replica set with exactly 32 GB per node, unchanged
+  during scaling. Unsupported configurations must fail explicitly; never
+  substitute another region, tier, disk size or topology.
+- Prepare new plans for this policy. Use ownership-verified manual cleanup for
+  older Atlas manifests that no longer meet execution policy.
 - Set `ATLAS_PROJECT_ID` in the local environment. Obtain service-account client
   credentials with `--prompt-atlas-credentials` and the long-lived result URI with
   `--prompt-results-uri`, or use their documented environment variables.
