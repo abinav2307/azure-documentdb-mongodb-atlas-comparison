@@ -3,7 +3,7 @@ import { STORAGE_SIZE_GB, validateComputeTransition, workloadThreads } from "./s
 import { sendControlPlaneFailureEmail } from "./email-notifier.js";
 
 export const ATLAS_AGENT = "MongoDB Atlas Resiliency Agent";
-export const CAMPAIGN_REGIONS = Object.freeze(["eastus2", "westus2", "eastus", "northcentralus"]);
+export const CAMPAIGN_REGIONS = Object.freeze(["eastus2"]);
 export const ATLAS_REGIONS = Object.freeze({
   uaecentral: "UAE_CENTRAL", uaenorth: "UAE_NORTH", eastasia: "ASIA_EAST",
   southeastasia: "ASIA_SOUTH_EAST", australiacentral: "AUSTRALIA_CENTRAL",

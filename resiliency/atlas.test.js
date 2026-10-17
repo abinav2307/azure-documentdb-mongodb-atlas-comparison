@@ -73,9 +73,9 @@ function apiMock(value) {
   };
 }
 
-test("Atlas applies the restricted regions, one-step tiers and 32 GB while preserving workload settings", () => {
+test("Atlas applies eastus2 only, one-step tiers and 32 GB while preserving workload settings", () => {
   assert.deepEqual(REGIONS.map((region) => ATLAS_REGIONS[region]),
-    ["US_EAST_2", "US_WEST_2", "US_EAST", "US_NORTH_CENTRAL"]);
+    ["US_EAST_2"]);
   for (const [initial, target] of [["M10", "M20"], ["M20", "M30"]]) {
     const { value, document } = fixture(initial, target);
     assert.equal(value.experiment.baselineSeconds, 120);
@@ -172,7 +172,7 @@ test("generation and Atlas requests enforce region and storage policy before net
       assert.deepEqual(validate(document, schema), []);
     }
   }
-  for (const region of ["westeurope", "westus", "centralus", "invalid"]) {
+  for (const region of ["westus2", "eastus", "northcentralus", "westeurope", "westus", "centralus", "invalid"]) {
     assert.throws(() => manifest("run-1", "cluster", created, region, "M10", "M20", PROJECT),
       /Unsupported Atlas Azure region/);
     assert.throws(() => plannedDocument("run-1", "cluster", created, region, "M10", "M20", PROJECT),
@@ -185,7 +185,10 @@ test("generation and Atlas requests enforce region and storage policy before net
       /Unapproved storage size/);
   }
   const mutations = [
-    (value) => { value.location = "westeurope"; value.atlas.regionName = "EUROPE_WEST"; },
+    ...["westus2", "eastus", "northcentralus", "westeurope"].map((region) => (value) => {
+      value.location = region;
+      value.atlas.regionName = ATLAS_REGIONS[region];
+    }),
     ...[31, 33, 128, 1024, "32"].map((storage) => (value) => { value.experiment.storageSizeGb = storage; })
   ];
   const root = await mkdtemp(resolve(tmpdir(), "atlas-policy-"));
@@ -212,7 +215,7 @@ test("result validation rejects larger disks, other regions and non-adjacent tie
     (document) => { document.targetComputeTier = "M30"; },
     (document) => { document.storageSizeGb = 128; },
     (document) => { document.storageSizeGb = "32"; },
-    (document) => { document.region = "westeurope"; }
+    ...["westus2", "eastus", "northcentralus", "westeurope"].map((region) => (document) => { document.region = region; })
   ]) {
     const { document } = fixture();
     change(document);

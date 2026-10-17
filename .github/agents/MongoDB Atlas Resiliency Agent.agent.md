@@ -19,7 +19,7 @@ API; no Azure subscription authentication or cloud-management CLI is required.
 - Randomized campaigns default to 200 sequential runs and accept 1 through 200.
   Obtain approval for the full materialized plan; never expand a resumed plan.
 - Initial tiers are M10 or M20 only, with exactly one step up: M10 to M20 or
-  M20 to M30. Allow only eastus2, westus2, eastus and northcentralus.
+  M20 to M30. Allow only eastus2 (Atlas US_EAST_2); never fall back to another region.
 - Atlas uses one three-node replica set with exactly 32 GB per node, unchanged
   during scaling. Unsupported configurations must fail explicitly; never
   substitute another region, tier, disk size or topology.

@@ -104,9 +104,8 @@ existing plan preserves its original run count; it does not expand it to 200.
 | M20 | M30 | 32 GB | 1 |
 
 Every cluster is a **three-node replica set** with one shard. Compute and disk
-autoscaling are disabled. Only `eastus2`, `westus2`, `eastus` and
-`northcentralus` are allowed, mapped respectively to Atlas `US_EAST_2`,
-`US_WEST_2`, `US_EAST` and `US_NORTH_CENTRAL`. Scaling is exactly one tier up;
+autoscaling are disabled. Only `eastus2` is allowed, mapped to Atlas
+`US_EAST_2`. No fallback to another region is permitted. Scaling is exactly one tier up;
 disk size remains 32 GB per node. The selected region, tier, disk size and node
 count are checked after provisioning and scale-up.
 

@@ -39,10 +39,10 @@ test("campaign defaults and SKU mappings are preserved", () => {
   assert.equal(workloadThreads("M80"), 32);
   assert.equal(new Set(REGIONS).size, REGIONS.length);
   assert.deepEqual(INITIAL_SKUS, ["M10", "M20"]);
-  assert.deepEqual(REGIONS, ["eastus2", "westus2", "eastus", "northcentralus"]);
+  assert.deepEqual(REGIONS, ["eastus2"]);
 });
 
-test("every randomized configuration uses the four regions and exactly one tier step from M10 or M20", (t) => {
+test("every randomized configuration uses only eastus2 and exactly one tier step from M10 or M20", (t) => {
   for (const [initialIndex, initial] of INITIAL_SKUS.entries()) {
     for (const [regionIndex, region] of REGIONS.entries()) {
       const target = higherSkus(initial)[0];
